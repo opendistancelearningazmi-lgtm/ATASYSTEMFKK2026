@@ -1,0 +1,944 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  Users, 
+  BookOpen, 
+  Filter, 
+  CheckCircle, 
+  AlertCircle, 
+  Printer, 
+  UserCheck,
+  Layers,
+  Info, 
+  CalendarDays,
+  Settings,
+  Plus, 
+  Trash2,
+  Edit3,
+  Save,
+  X,
+  ToggleLeft,
+  ToggleRight,
+  GraduationCap,
+  ArrowRight,
+  LayoutGrid,
+  BrainCircuit,
+  ShieldAlert,
+  History as HistoryIcon,
+  Briefcase,
+  UserCog,
+  Compass,
+  UserPlus,
+  ShieldCheck,
+  Boxes,
+  Users2,
+  BookMarked,
+  Calculator,
+  UserRound,
+  Library,
+  User,
+  Users as UsersIcon,
+  UserCheck2,
+  Target,
+  PlusCircle,
+  Hash,
+  ChevronRight,
+  Trophy,
+  Sparkles,
+  AlertTriangle,
+  TrendingUp,
+  Link2,
+  Scale,
+  Zap,
+  BarChart3,
+  RotateCcw,
+  Pencil,
+  Search,
+  FileText,
+  Lock,
+  Mail,
+  Phone,
+  MapPin,
+  Globe,
+  Award
+} from 'lucide-react';
+
+const App = () => {
+  // --- HELPER: PERSISTENCE ---
+  const getInitialData = (key, fallback) => {
+    const saved = localStorage.getItem(`ata_v8_${key}`);
+    return saved ? JSON.parse(saved) : fallback;
+  };
+
+  // --- HELPER: SESSION DECODER ---
+  const formatSessionName = (sessionCode) => {
+    if (!sessionCode) return "";
+    const codeStr = sessionCode.toString();
+    const year = parseInt(codeStr.substring(0, 4));
+    const suffix = parseInt(codeStr.substring(4));
+
+    if (suffix === 2) {
+      return `MAC - OGOS ${year}`;
+    } else if (suffix === 4) {
+      return `OKT ${year - 1} - FEB ${year}`;
+    }
+    return `SESI ${sessionCode}`;
+  };
+
+  const careerTracks = [
+    "TREK KEPIMPINAN",
+    "TREK PENYELIDIKAN",
+    "TREK PENGAJARAN DAN PEMBELAJARAN",
+    "TREK INDUSTRI"
+  ];
+
+  // --- STATE UTAMA (WITH PERSISTENCE) ---
+  const [academicSessions, setAcademicSessions] = useState(() => getInitialData('sessions', [20252, 20254, 20262, 20264]));
+  const [lecturers, setLecturers] = useState(() => getInitialData('lecturers', [
+    { name: "NOORHALIZA AZIZ", role: "Tiada Jawatan", category: "PENSYARAH KANAN", track: "TREK PENGAJARAN DAN PEMBELAJARAN", min: 15, max: 18, active: true, expertise: ["CHE145", "CHE244", "CHE121", "CHE111"], history: ["CHE121"] },
+    { name: "AZMI BIN ROSLAN", role: "Koordinator Prasiswazah", category: "PENSYARAH KANAN", track: "TREK KEPIMPINAN", min: 8, max: 25, active: true, expertise: ["CHE111", "CHE263", "CHE145"], history: ["CHE145", "CHE121"] },
+    { name: "NOR FADILAH BTE MOHAMAD", role: "Tiada Jawatan", category: "PENSYARAH", track: "TREK PENYELIDIKAN", min: 16, max: 20, active: true, expertise: ["CHE111", "CHE121", "CHE145", "CHE263"], history: [] },
+  ]));
+  const [courses, setCourses] = useState(() => getInitialData('courses', [
+    { semester: 1, code: "CHE121", name: "Introduction to Chemical Engineering", lec_jam: 2, tut_jam: 1, lab_jam: 0 },
+    { semester: 1, code: "CHE111", name: "Engineering Drawing", lec_jam: 0, tut_jam: 0, lab_jam: 3 },
+    { semester: 2, code: "CHE145", name: "Organic & Analytical Chem", lec_jam: 2, tut_jam: 0, lab_jam: 3 }
+  ]));
+  const [semesterGroups, setSemesterGroups] = useState(() => getInitialData('groups', [
+    { session: 20252, semester: 1, name: "J4EH1101A", pa: "AZMI BIN ROSLAN", students: 35 },
+    { session: 20252, semester: 1, name: "J4EH1101B", pa: "NOORHALIZA AZIZ", students: 28 },
+    { session: 20252, semester: 2, name: "J4EH1102A", pa: "NOR FADILAH BTE MOHAMAD", students: 40 }
+  ]));
+  const [assignments, setAssignments] = useState(() => getInitialData('assignments', {}));
+  const [teachingModes, setTeachingModes] = useState(() => getInitialData('modes', {}));
+
+  // --- PERSISTENCE EFFECT ---
+  useEffect(() => {
+    localStorage.setItem('ata_v8_sessions', JSON.stringify(academicSessions));
+    localStorage.setItem('ata_v8_lecturers', JSON.stringify(lecturers));
+    localStorage.setItem('ata_v8_courses', JSON.stringify(courses));
+    localStorage.setItem('ata_v8_groups', JSON.stringify(semesterGroups));
+    localStorage.setItem('ata_v8_assignments', JSON.stringify(assignments));
+    localStorage.setItem('ata_v8_modes', JSON.stringify(teachingModes));
+  }, [academicSessions, lecturers, courses, semesterGroups, assignments, teachingModes]);
+
+  // --- TRANSIENT STATES ---
+  const [newSessionInput, setNewSessionInput] = useState('');
+  const [selectedSession, setSelectedSession] = useState(20252);
+  const [activeTab, setActiveTab] = useState('agihan');
+  const [selectedLecturerForContact, setSelectedLecturerForContact] = useState("");
+  const [violationModal, setViolationModal] = useState(null);
+  const [optimizationWarning, setOptimizationWarning] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetPasswordError, setResetPasswordError] = useState(false);
+  
+  const [sessionToEdit, setSessionToEdit] = useState(null);
+  const [editSessionInput, setEditSessionInput] = useState('');
+
+  const [matrixSearch, setMatrixSearch] = useState("");
+  const [matrixSemFilter, setMatrixSemFilter] = useState("ALL");
+
+  const [newLec, setNewLec] = useState({ name: '', role: 'Tiada Jawatan', category: 'PENSYARAH', track: 'TREK PENGAJARAN DAN PEMBELAJARAN', min: 16, max: 20, active: true, expertise: [], history: [] });
+  const [editingLecIndex, setEditingLecIndex] = useState(null); 
+  const [newCourse, setNewCourse] = useState({ semester: 1, code: '', name: '', lec_jam: 0, tut_jam: 0, lab_jam: 0 });
+  const [editingCourseCode, setEditingCourseCode] = useState(null);
+  const [newGroup, setNewGroup] = useState({ session: 20252, semester: 1, name: '', pa: 'Tiada PA', students: 30 });
+
+  // --- DERIVED STATES ---
+  const activeLecturersList = useMemo(() => lecturers.filter(l => l.active), [lecturers]);
+
+  const effectiveGroups = useMemo(() => {
+    let allGroups = [...semesterGroups];
+    const sortedSessions = [...academicSessions].sort((a, b) => a - b);
+    semesterGroups.forEach(baseGroup => {
+      const startIdx = sortedSessions.indexOf(baseGroup.session);
+      if (startIdx === -1) return;
+      let runningSem = baseGroup.semester;
+      const groupSuffix = baseGroup.name.slice(-1); 
+      for (let i = startIdx + 1; i < sortedSessions.length; i++) {
+        const targetSesi = sortedSessions[i];
+        runningSem += 1;
+        if (runningSem > 6) break;
+        const targetName = `J4EH110${runningSem}${groupSuffix}`;
+        const exists = semesterGroups.some(x => x.session === targetSesi && x.name === targetName);
+        if (!exists) {
+          allGroups.push({ ...baseGroup, session: targetSesi, semester: runningSem, name: targetName, isAuto: true });
+        }
+      }
+    });
+    return allGroups;
+  }, [semesterGroups, academicSessions]);
+
+  const psScoreCalc = (count) => {
+    if (count > 150) return 1.8;
+    if (count > 100) return 1.5;
+    if (count >= 81) return 1.2;
+    if (count >= 61) return 1.0;
+    if (count >= 41) return 0.8;
+    if (count >= 31) return 0.6;
+    if (count >= 1) return 0.5;
+    return 0;
+  };
+
+  const addPSCalc = (subCount) => {
+    if (subCount >= 5) return 4;
+    if (subCount === 4) return 3;
+    if (subCount === 3) return 2;
+    if (subCount === 2) return 1;
+    return 0; 
+  };
+
+  const activeUnits = useMemo(() => {
+    let list = [];
+    if (!selectedSession) return list;
+    const sessionGroups = effectiveGroups.filter(g => g.session === selectedSession);
+    sessionGroups.forEach(groupObj => {
+      const semesterSubjects = courses.filter(c => c.semester === groupObj.semester);
+      const ps = psScoreCalc(groupObj.students);
+      semesterSubjects.forEach(course => {
+        const makeEntry = (type, raw) => {
+          const id = `${selectedSession}-${course.code}-${groupObj.name}-${type}`;
+          const mode = teachingModes[id] || 'INDIVIDUAL';
+          const ks = mode === 'TEAM' ? raw * 0.5 : raw;
+          return { id, session: selectedSession, courseCode: course.code, courseName: course.name, semester: groupObj.semester, group: groupObj.name, students: groupObj.students, pa: groupObj.pa, type, jam_raw: raw, ks_val: ks, ps_val: ps, ats: ks + ps, mode, isAuto: groupObj.isAuto };
+        };
+        if (course.lec_jam > 0) list.push(makeEntry("LEC", course.lec_jam));
+        if (course.tut_jam > 0) list.push(makeEntry("TUT", course.tut_jam));
+        if (course.lab_jam > 0) list.push(makeEntry("LAB", course.lab_jam));
+      });
+    });
+    return list;
+  }, [selectedSession, courses, effectiveGroups, teachingModes]);
+
+  const lecturerStats = useMemo(() => {
+    let stats = {};
+    lecturers.forEach(l => { stats[l.name] = { jam: 0, ats: 0, subjects: new Set(), units: [], additionalPS: 0, min: l.min, max: l.max, track: l.track, active: l.active, category: l.category, history: l.history || [] }; });
+    Object.entries(assignments).forEach(([unitId, lecturerNames]) => {
+      const foundUnit = activeUnits.find(u => u.id === unitId);
+      if (foundUnit) {
+        const names = Array.isArray(lecturerNames) ? lecturerNames : [lecturerNames];
+        names.forEach(n => { if (stats[n]) { stats[n].jam += foundUnit.ks_val; stats[n].ats += foundUnit.ats; stats[n].subjects.add(foundUnit.courseCode); stats[n].units.push(foundUnit); } });
+      }
+    });
+    Object.keys(stats).forEach(name => {
+      stats[name].additionalPS = addPSCalc(stats[name].subjects.size);
+      stats[name].ats += stats[name].additionalPS; 
+    });
+    return stats;
+  }, [assignments, activeUnits, lecturers]);
+
+  // --- OPTIMASI INDIVIDU PENSYARAH ---
+  const optimizeIndividualLecturer = (lecName) => {
+    const lec = lecturers.find(l => l.name === lecName);
+    if (!lec || !lec.active) return;
+    let newAssignments = { ...assignments };
+    let newModes = { ...teachingModes };
+    let currentJam = lecturerStats[lecName].jam;
+    const unassignedUnits = activeUnits.filter(u => !assignments[u.id] || assignments[u.id].length === 0);
+    const bundles = [];
+    const processedIds = new Set();
+    unassignedUnits.forEach(u => {
+      if (processedIds.has(u.id)) return;
+      let bundle = { units: [u], total_raw: u.jam_raw, courseCode: u.courseCode };
+      processedIds.add(u.id);
+      if (u.type === 'LEC') {
+        const tut = unassignedUnits.find(x => x.courseCode === u.courseCode && x.group === u.group && x.type === 'TUT');
+        if (tut) { bundle.units.push(tut); bundle.total_raw += tut.jam_raw; processedIds.add(tut.id); }
+      }
+      bundles.push(bundle);
+    });
+    bundles.sort((a, b) => {
+      const hasHistA = (lec.history || []).includes(a.courseCode) ? 1 : 0;
+      const hasHistB = (lec.history || []).includes(b.courseCode) ? 1 : 0;
+      return hasHistB - hasHistA;
+    });
+    for (const bundle of bundles) {
+      if (currentJam >= lec.max) break;
+      if ((lec.expertise || []).includes(bundle.courseCode)) {
+        if ((currentJam + bundle.total_raw) <= lec.max) {
+           bundle.units.forEach(u => {
+             newAssignments[u.id] = [lecName];
+             newModes[u.id] = 'INDIVIDUAL';
+           });
+           currentJam += bundle.total_raw;
+        }
+      }
+    }
+    setAssignments(newAssignments);
+    setTeachingModes(newModes);
+  };
+
+  const optimizeKSDistribution = () => {
+    setOptimizationWarning(false);
+    let newAssignments = { ...assignments };
+    let newModes = { ...teachingModes };
+    let localStats = {};
+    activeLecturersList.forEach(l => { localStats[l.name] = { jam: 0, subjects: new Set() }; });
+    const bundles = [];
+    const processedIds = new Set();
+    activeUnits.forEach(u => {
+      if (processedIds.has(u.id)) return;
+      let bundle = { units: [u], total_raw: u.jam_raw, courseCode: u.courseCode, isLEC_TUT: u.type !== 'LAB' };
+      processedIds.add(u.id);
+      if (u.type === 'LEC') {
+        const tut = activeUnits.find(x => x.courseCode === u.courseCode && x.group === u.group && x.type === 'TUT' && x.session === u.session);
+        if (tut) { bundle.units.push(tut); bundle.total_raw += tut.jam_raw; processedIds.add(tut.id); }
+      }
+      bundles.push(bundle);
+    });
+    bundles.sort((a, b) => {
+      const expertsA = activeLecturersList.filter(l => l.expertise.includes(a.courseCode)).length;
+      const expertsB = activeLecturersList.filter(l => l.expertise.includes(b.courseCode)).length;
+      return expertsA - expertsB;
+    });
+    bundles.forEach(bundle => {
+      const cands = activeLecturersList
+        .filter(l => l.expertise.includes(bundle.courseCode))
+        .filter(l => localStats[l.name].subjects.size < 3 || localStats[l.name].subjects.has(bundle.courseCode))
+        .sort((a, b) => {
+          if (localStats[a.name].jam === 0 && localStats[b.name].jam > 0) return -1;
+          if (localStats[b.name].jam === 0 && localStats[a.name].jam > 0) return 1;
+          const historyA = (a.history || []).includes(bundle.courseCode) ? 1 : 0;
+          const historyB = (b.history || []).includes(bundle.courseCode) ? 1 : 0;
+          if (historyA !== historyB) return historyB - historyA;
+          return (b.min - localStats[b.name].jam) - (a.min - localStats[a.name].jam);
+        });
+      let selected = cands.find(l => (localStats[l.name].jam + bundle.total_raw) <= l.max);
+      if (selected) {
+        bundle.units.forEach(u => { newAssignments[u.id] = [selected.name]; newModes[u.id] = 'INDIVIDUAL'; });
+        localStats[selected.name].jam += bundle.total_raw;
+        localStats[selected.name].subjects.add(bundle.courseCode);
+      }
+    });
+    activeLecturersList.forEach(lec => {
+      if (localStats[lec.name].jam < lec.min) {
+         const targetBundles = bundles.filter(b => b.isLEC_TUT && !localStats[lec.name].subjects.has(b.courseCode) && lec.expertise.includes(b.courseCode));
+         for (let bundle of targetBundles) {
+            const currentAssignees = newAssignments[bundle.units[0].id] || [];
+            if (currentAssignees.length === 1 && currentAssignees[0] !== lec.name) {
+               const ownerName = currentAssignees[0];
+               const owner = activeLecturersList.find(l => l.name === ownerName);
+               const halfJam = bundle.total_raw * 0.5;
+               const ownerJamWithoutThis = localStats[ownerName].jam - bundle.total_raw;
+               if ((localStats[lec.name].jam + halfJam) <= lec.max && (ownerJamWithoutThis + halfJam) <= owner.max) {
+                  bundle.units.forEach(u => { newAssignments[u.id] = [ownerName, lec.name]; newModes[u.id] = 'TEAM'; });
+                  localStats[ownerName].jam = ownerJamWithoutThis + halfJam;
+                  localStats[lec.name].jam += halfJam;
+                  localStats[lec.name].subjects.add(bundle.courseCode);
+                  if (localStats[lec.name].jam >= lec.min) break;
+               }
+            }
+         }
+      }
+    });
+    setAssignments(newAssignments);
+    setTeachingModes(newModes);
+    if (activeUnits.some(u => !newAssignments[u.id])) setOptimizationWarning(true);
+  };
+
+  // --- ACTIONS ---
+  const addAcademicSession = () => { 
+    const val = parseInt(newSessionInput); 
+    if (val && !academicSessions.includes(val)) { 
+      setAcademicSessions(prev => [...prev, val].sort((a,b) => a-b)); 
+      setNewSessionInput(''); 
+      setSelectedSession(val);
+    } 
+  };
+  const deleteAcademicSession = (session) => { setAcademicSessions(prev => prev.filter(s => s !== session)); if (selectedSession === session) setSelectedSession(null); setSemesterGroups(prev => prev.filter(g => g.session !== session)); setAssignments(prev => { const upd = { ...prev }; Object.keys(upd).forEach(key => { if (key.startsWith(session.toString())) delete upd[key]; }); return upd; }); };
+  const startEditSession = (session) => { setSessionToEdit(session); setEditSessionInput(session.toString()); };
+  const saveEditedSession = () => { const newVal = parseInt(editSessionInput); if (!newVal || academicSessions.includes(newVal)) { setSessionToEdit(null); return; } const oldValStr = sessionToEdit.toString(); const newValStr = newVal.toString(); setAcademicSessions(prev => prev.map(s => s === sessionToEdit ? newVal : s).sort((a,b) => a-b)); if (selectedSession === sessionToEdit) setSelectedSession(newVal); setSemesterGroups(prev => prev.map(g => g.session === sessionToEdit ? { ...g, session: newVal } : g)); setAssignments(prev => { const upd = {}; Object.entries(prev).forEach(([id, val]) => { const newId = id.startsWith(oldValStr) ? id.replace(oldValStr, newValStr) : id; upd[newId] = val; }); return upd; }); setTeachingModes(prev => { const upd = {}; Object.entries(prev).forEach(([id, val]) => { const newId = id.startsWith(oldValStr) ? id.replace(oldValStr, newValStr) : id; upd[newId] = val; }); return upd; }); setSessionToEdit(null); };
+
+  const handleResetSystem = () => {
+    if (resetPassword === '123456') {
+      localStorage.clear();
+      window.location.reload();
+    } else {
+      setResetPasswordError(true);
+    }
+  };
+
+  const closeResetModal = () => { setShowResetConfirm(false); setResetPassword(''); setResetPasswordError(false); };
+  const saveLecturer = () => { if (!newLec.name) return; const name = newLec.name.toUpperCase(); if (editingLecIndex !== null) { const upd = [...lecturers]; upd[editingLecIndex] = { ...newLec, name }; setLecturers(upd); setEditingLecIndex(null); } else { setLecturers([...lecturers, { ...newLec, name }]); } setNewLec({ name: '', role: 'Tiada Jawatan', category: 'PENSYARAH', track: 'TREK PENGAJARAN DAN PEMBELAJARAN', min: 16, max: 20, active: true, expertise: [], history: [] }); };
+  const removeGroup = (session, semester, name) => { setSemesterGroups(prev => prev.filter(g => !(g.session === session && g.semester === semester && g.name === name))); };
+  const handleAssign = (id, name, idx) => { const curr = assignments[id] || []; const upd = [...curr]; if (!name) { upd.splice(idx, 1); setAssignments(prev => ({ ...prev, [id]: upd })); return; } const lecturer = lecturers.find(l => l.name === name); const unit = activeUnits.find(u => u.id === id); if (lecturer && unit && !lecturer.expertise.includes(unit.courseCode)) { setViolationModal({ lecturer: name, courseCode: unit.courseCode }); return; } upd[idx] = name; setAssignments(prev => ({ ...prev, [id]: upd })); };
+  const saveCourse = () => { if (!newCourse.code || !newCourse.name) return; const upperCode = newCourse.code.toUpperCase(); setCourses(prev => { const filtered = prev.filter(c => c.code !== (editingCourseCode || upperCode)); return [...filtered, { ...newCourse, code: upperCode }].sort((a,b) => a.semester - b.semester); }); setNewCourse({ semester: 1, code: '', name: '', lec_jam: 0, tut_jam: 0, lab_jam: 0 }); setEditingCourseCode(null); };
+  const deleteCourse = (code) => { setCourses(prev => prev.filter(c => c.code !== code)); };
+  const startEditCourse = (course) => { setNewCourse(course); setEditingCourseCode(course.code); };
+  const addGroup = () => { if (!newGroup.name) return; const final = `J4EH110${newGroup.semester}${newGroup.name.toUpperCase().trim()}`; if (semesterGroups.some(g => g.session === newGroup.session && g.name === final)) return; setSemesterGroups([...semesterGroups, { ...newGroup, name: final }]); setNewGroup({ ...newGroup, name: '' }); };
+  const toggleTeachingMode = (id) => setTeachingModes(prev => ({ ...prev, [id]: prev[id] === 'TEAM' ? 'INDIVIDUAL' : 'TEAM' }));
+  const toggleLecturerActive = (idx) => { const upd = [...lecturers]; upd[idx].active = !upd[idx].active; setLecturers(upd); };
+  const toggleExpertise = (lecturerName, courseCode) => { setLecturers(prev => prev.map(l => { if (l.name === lecturerName) { const hasIt = l.expertise.includes(courseCode); return { ...l, expertise: hasIt ? l.expertise.filter(c => c !== courseCode) : [...l.expertise, courseCode] }; } return l; })); };
+  const toggleHistory = (lecturerName, courseCode) => { setLecturers(prev => prev.map(l => { if (l.name === lecturerName) { const hasIt = l.history.includes(courseCode); return { ...l, history: hasIt ? l.history.filter(c => c !== courseCode) : [...l.history, courseCode] }; } return l; })); };
+
+  const filteredMatrixLecturers = useMemo(() => lecturers.filter(l => l.name.toLowerCase().includes(matrixSearch.toLowerCase())), [lecturers, matrixSearch]);
+  const filteredMatrixCourses = useMemo(() => { if (matrixSemFilter === "ALL") return courses; return courses.filter(c => c.semester === parseInt(matrixSemFilter)); }, [courses, matrixSemFilter]);
+
+  // --- SUB-COMPONENT: PROFESSIONAL CONTACT CARD (RESUME STYLE) ---
+  const renderContactCard = (lecName) => {
+    const stats = lecturerStats[lecName];
+    const originalLecturer = lecturers.find(l => l.name === lecName);
+    if (!stats) return null;
+
+    return (
+      <div key={lecName} className="bg-white max-w-5xl mx-auto shadow-[0_35px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden mb-20 break-after-page font-serif">
+        {/* HEADER SECTION (NAVY) */}
+        <div className="bg-slate-900 text-white py-12 px-16 text-center">
+          <h2 className="text-6xl font-serif tracking-[0.2em] mb-4 uppercase">{lecName}</h2>
+          <p className="text-xl tracking-[0.4em] text-slate-400 font-light uppercase">{originalLecturer?.track}</p>
+        </div>
+
+        <div className="grid grid-cols-3 min-h-[800px]">
+          {/* LEFT SIDEBAR (LIGHT GREY) */}
+          <div className="col-span-1 bg-slate-50 p-12 border-r border-slate-200">
+            <div className="space-y-12">
+              {/* CONTACT SECTION */}
+              <section>
+                <h3 className="text-sm font-black tracking-[0.3em] uppercase border-b-2 border-slate-900 pb-2 mb-6 text-slate-950">Hubungi</h3>
+                <ul className="space-y-4 text-slate-600 font-sans text-xs">
+                    <li className="flex items-center gap-4"><Phone size={14} className="text-slate-950"/> 012-345 6789</li>
+                    <li className="flex items-center gap-4"><Mail size={14} className="text-slate-950"/> {originalLecturer?.name.toLowerCase().replace(/\s/g, '')}@uitm.edu.my</li>
+                    <li className="flex items-center gap-4"><MapPin size={14} className="text-slate-950"/> UITM Shah Alam</li>
+                    <li className="flex items-center gap-4"><Globe size={14} className="text-slate-950"/> uitm.edu.my/pensyarah</li>
+                </ul>
+              </section>
+
+              {/* EDUCATION / PROFILE SECTION */}
+              <section>
+                <h3 className="text-sm font-black tracking-[0.3em] uppercase border-b-2 border-slate-950 pb-2 mb-6 text-slate-950">Profil</h3>
+                <div className="space-y-6">
+                    <div className="font-sans text-[11px] leading-relaxed text-slate-500 text-justify italic">
+                      Pensyarah dalam kategori <span className="font-bold text-slate-900">{originalLecturer?.category}</span> bagi bidang Kejuruteraan Kimia. Fokus utama di bawah <span className="font-bold text-slate-900">{originalLecturer?.track}</span>.
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-[11px] font-black text-slate-900 uppercase">Jawatan Utama</p>
+                        <p className="text-[10px] text-slate-500">{originalLecturer?.role}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-black text-slate-900 uppercase">Had Beban Kerja</p>
+                        <p className="text-[10px] text-slate-500 font-bold">{originalLecturer?.min} - {originalLecturer?.max} Jam Kredit (KS)</p>
+                      </div>
+                    </div>
+                </div>
+              </section>
+
+              {/* SKILLS / EXPERTISE SECTION */}
+              <section>
+                <h3 className="text-sm font-black tracking-[0.3em] uppercase border-b-2 border-slate-950 pb-2 mb-6 text-slate-950">Kepakaran</h3>
+                <ul className="space-y-2 text-slate-600 font-sans text-[11px]">
+                    {(originalLecturer?.expertise || []).map(code => (
+                      <li key={code} className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-900"></div> {code}
+                      </li>
+                    ))}
+                </ul>
+              </section>
+            </div>
+          </div>
+
+          {/* RIGHT CONTENT AREA */}
+          <div className="col-span-2 p-16">
+            <div className="space-y-16">
+              
+              {/* PROFESSIONAL EXPERIENCE (CURRENT ASSIGNMENTS) */}
+              <section>
+                <h3 className="text-sm font-black tracking-[0.3em] uppercase border-b-2 border-slate-900 pb-2 mb-8 text-slate-950 flex items-center justify-between">
+                    Agihan Sesi Terkini
+                    <span className="text-[10px] font-bold text-slate-400">{formatSessionName(selectedSession)}</span>
+                </h3>
+                
+                <div className="space-y-8">
+                  {(stats.units || []).length > 0 ? (stats.units || []).map((u, i) => (
+                    <div key={i} className="relative pl-6 border-l-2 border-slate-100">
+                      <div className="absolute -left-[5px] top-0 w-2 h-2 rounded-full bg-slate-900"></div>
+                      <div className="flex justify-between items-start mb-1">
+                         <h4 className="text-sm font-black uppercase text-slate-950 tracking-wide">{u.courseCode} - {u.courseName}</h4>
+                         <span className="text-[10px] font-bold text-slate-400 font-sans">{u.group} | SEM {u.semester}</span>
+                      </div>
+                      <div className="flex gap-3 mb-2 font-sans">
+                         <span className="text-[9px] font-black px-2 py-0.5 bg-slate-100 rounded text-slate-600 uppercase">{u.type}</span>
+                         <span className="text-[9px] font-black px-2 py-0.5 bg-slate-100 rounded text-slate-600 uppercase flex items-center gap-1">
+                            {u.mode === 'TEAM' ? <Users size={10}/> : <User size={10}/>}
+                            {u.mode === 'TEAM' ? 'TEAM TEACHING' : 'INDIVIDUAL'}
+                         </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 text-justify leading-relaxed">
+                         Bertanggungjawab mengendalikan komponen <span className="lowercase">{u.type}</span> bagi kumpulan {u.group} dengan peruntukan beban kerja sebanyak <span className="font-bold text-slate-950">{u.ks_val.toFixed(1)} Jam Kredit</span>.
+                      </p>
+                    </div>
+                  )) : (
+                    <p className="text-slate-300 italic text-xs">Tiada agihan tugasan aktif bagi sesi ini.</p>
+                  )}
+                </div>
+              </section>
+
+              {/* TEACHING HISTORY (RESUME STYLE) */}
+              <section>
+                <h3 className="text-sm font-black tracking-[0.3em] uppercase border-b-2 border-slate-900 pb-2 mb-8 text-slate-950">Sejarah Pengajaran</h3>
+                <div className="grid grid-cols-1 gap-6">
+                    {(originalLecturer?.history || []).length > 0 ? (
+                      (originalLecturer.history).map((hCode) => {
+                        const courseInfo = courses.find(c => c.code === hCode);
+                        return (
+                          <div key={hCode} className="flex gap-6 items-start">
+                             <div className="pt-1 text-slate-950"><Award size={18}/></div>
+                             <div>
+                                <p className="text-xs font-black text-slate-950 uppercase leading-none mb-1">{hCode}</p>
+                                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{courseInfo?.name || "KURSUS SEMESTER LEPAS"}</p>
+                             </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-slate-300 italic text-xs">Tiada rekod sejarah pengajaran.</p>
+                    )}
+                </div>
+              </section>
+
+              {/* FINAL SUMMARY (ATS CALCULATION) */}
+              <div className="pt-12 mt-12 border-t border-slate-100 flex justify-between items-center bg-slate-50/50 p-8 rounded-3xl">
+                 <div className="flex gap-10 font-sans">
+                    <div><p className="text-[9px] font-black text-slate-400 mb-1 uppercase">Total KS</p><p className="text-2xl font-black text-slate-950">{stats.jam.toFixed(1)}</p></div>
+                    <div><p className="text-[9px] font-black text-slate-400 mb-1 uppercase">Subjek</p><p className="text-2xl font-black text-slate-950">{stats.subjects.size}</p></div>
+                    <div><p className="text-[9px] font-black text-slate-400 mb-1 uppercase">Bonus PS</p><p className="text-2xl font-black text-indigo-600">+{stats.additionalPS.toFixed(1)}</p></div>
+                 </div>
+                 <div className="text-right">
+                    <p className="text-[11px] font-black tracking-widest text-indigo-600 mb-1 uppercase">Total ATS</p>
+                    <p className="text-6xl font-black text-slate-950 leading-none">{stats.ats.toFixed(1)}</p>
+                 </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const handlePrintAction = () => { window.focus(); window.print(); };
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 text-[13px] uppercase tracking-tight">
+      <style>{`
+        @media print {
+          .print-hide { display: none !important; }
+          .break-after-page { page-break-after: always !important; }
+          body { background: white !important; }
+          main { overflow: visible !important; }
+          .shadow-2xl { shadow: none !important; }
+          .shadow-[0_35px_60px_-15px_rgba(0,0,0,0.1)] { box-shadow: none !important; }
+        }
+      `}</style>
+
+      {/* GLOBAL MODALS */}
+      {violationModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border-4 border-red-500 overflow-hidden animate-in zoom-in-95">
+            <div className="bg-red-50 p-8 text-center border-b border-red-100">
+              <ShieldAlert size={32} className="mx-auto mb-4 text-red-500" />
+              <h3 className="text-xl font-black uppercase text-red-700 leading-none text-slate-950">Kepakaran Tidak Sah!</h3>
+            </div>
+            <div className="p-8 space-y-6 text-center leading-none text-slate-800 font-bold">
+              <p>Pensyarah <span className="text-red-600">{violationModal.lecturer}</span> tidak pakar dlm kod <span className="text-red-600">{violationModal.courseCode}</span>.</p>
+              <button onClick={() => setViolationModal(null)} className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black text-xs hover:bg-black transition-all">Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border-4 border-slate-950 overflow-hidden animate-in zoom-in-95">
+            <div className="p-10 text-center space-y-6">
+              <div className="relative mx-auto w-20 h-20 bg-red-50 rounded-full flex items-center justify-center border-4 border-red-100 mb-2">
+                <Lock size={32} className="text-red-600" />
+              </div>
+              <h3 className="text-2xl font-black uppercase leading-none text-slate-950">Pengesahan Keselamatan</h3>
+              <p className="text-slate-500 font-bold leading-relaxed px-4 text-xs">Sila masukkan kata laluan keselamatan untuk mengosongkan semua data sistem.</p>
+              <div className="space-y-4">
+                <div className="relative">
+                  <input type="password" placeholder="KATA LALUAN" className={`w-full bg-slate-50 border-4 ${resetPasswordError ? 'border-red-500' : 'border-slate-100'} p-5 rounded-2xl font-black text-center text-lg outline-none focus:border-indigo-500 transition-all uppercase`} value={resetPassword} onChange={e => {setResetPassword(e.target.value); setResetPasswordError(false);}} onKeyDown={e => e.key === 'Enter' && handleResetSystem()}/>
+                  {resetPasswordError && <p className="text-red-500 text-[10px] font-black mt-2 animate-bounce">KATA LALUAN SALAH. SILA CUBA LAGI.</p>}
+                </div>
+                <div className="flex gap-4">
+                  <button onClick={closeResetModal} className="flex-1 bg-slate-100 text-slate-900 p-5 rounded-2xl font-black text-xs uppercase hover:bg-slate-200 transition-all leading-none">Batal</button>
+                  <button onClick={handleResetSystem} className="flex-1 bg-red-600 text-white p-5 rounded-2xl font-black text-xs uppercase hover:bg-red-700 shadow-xl shadow-red-200 transition-all active:scale-95 leading-none">Sahkan Reset</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col md:flex-row h-screen overflow-hidden">
+        
+        {/* SIDEBAR */}
+        <aside className="w-full md:w-72 bg-slate-950 text-white p-6 flex flex-col gap-8 shadow-2xl z-10 overflow-y-auto print:hidden">
+          <div>
+            <h1 className="text-xl font-black flex items-center gap-2 text-indigo-400 tracking-tighter uppercase leading-none">
+              <CalendarDays size={26} /> ATA Master
+            </h1>
+            <p className="text-[10px] text-slate-500 mt-2 font-bold tracking-widest uppercase">Balanced Force 8.5</p>
+          </div>
+
+          <nav className="flex flex-col gap-1">
+            {[
+              { id: 'agihan', label: 'Agihan Utama', icon: <Layers size={18} /> },
+              { id: 'dashboard', label: 'Analisa Beban', icon: <BarChart3 size={18} /> },
+              { id: 'kontak', label: 'Kad Kontak', icon: <Printer size={18} /> },
+              { id: 'sep1', type: 'header', label: 'Syllabus' },
+              { id: 'pelan', label: 'Pelan Pengajian', icon: <GraduationCap size={18} /> },
+              { id: 'expertise', label: 'Kepakaran Matrik', icon: <BrainCircuit size={18} /> },
+              { id: 'sep2', type: 'header', label: 'Sumber' },
+              { id: 'pensyarah', label: 'Urus Pensyarah', icon: <Users size={18} /> },
+              { id: 'kelas', label: 'Urus Unit Kelas', icon: <LayoutGrid size={18} /> },
+            ].map(tab => {
+              if (tab.type === 'header') return <div key={tab.label} className="text-[9px] font-black text-slate-600 mt-6 mb-2 tracking-widest px-4 uppercase">{tab.label}</div>;
+              return (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-black text-[11px] ${activeTab === tab.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'hover:bg-slate-900 text-slate-400'}`}>
+                  {tab.icon} {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto space-y-4 pt-8 border-t border-slate-900">
+             <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                <h3 className="text-[9px] font-black mb-3 text-slate-500 uppercase tracking-widest leading-none">Urus Sesi Akademik</h3>
+                <div className="flex gap-2 mb-4">
+                  <input type="number" className="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs font-bold text-white outline-none focus:border-indigo-500 uppercase" placeholder="E.G. 20262" value={newSessionInput} onChange={e => setNewSessionInput(e.target.value)} />
+                  <button onClick={addAcademicSession} className="bg-indigo-600 p-2 rounded-lg text-white hover:bg-indigo-700 transition-all leading-none"><Plus size={16}/></button>
+                </div>
+                <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto pr-1">
+                  {academicSessions.map(s => (
+                     <div key={s} className="group relative flex flex-col gap-0.5">
+                        {sessionToEdit === s ? (
+                          <div className="flex gap-1 animate-in slide-in-from-left-2 mb-2">
+                             <input autoFocus type="number" className="flex-1 bg-white text-slate-950 border-none rounded-lg p-1 text-[10px] font-black uppercase" value={editSessionInput} onChange={e => setEditSessionInput(e.target.value)} />
+                             <button onClick={saveEditedSession} className="bg-emerald-500 p-1.5 rounded-lg text-white leading-none"><CheckCircle size={14}/></button>
+                             <button onClick={() => setSessionToEdit(null)} className="bg-slate-700 p-1.5 rounded-lg text-white leading-none"><X size={14}/></button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => setSelectedSession(s)} className={`flex-1 py-2 px-3 rounded-lg border-2 transition-all flex flex-col items-start ${selectedSession === s ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'border-slate-800 text-slate-500 hover:border-slate-700'}`}>
+                              <span className="text-[10px] font-black leading-none uppercase">SESI {s}</span>
+                              <span className={`text-[7px] font-bold mt-1 uppercase ${selectedSession === s ? 'text-indigo-100' : 'text-slate-600'}`}>{formatSessionName(s)}</span>
+                            </button>
+                            <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => startEditSession(s)} className="p-1.5 text-slate-500 hover:text-indigo-400 leading-none"><Pencil size={12}/></button>
+                              <button onClick={() => deleteAcademicSession(s)} className="p-1.5 text-slate-500 hover:text-red-500 leading-none"><Trash2 size={12}/></button>
+                            </div>
+                          </div>
+                        )}
+                     </div>
+                  ))}
+                </div>
+             </div>
+             <button onClick={() => setShowResetConfirm(true)} className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-slate-900 text-red-500 font-black text-[10px] hover:bg-red-500/10 transition-all uppercase border border-transparent hover:border-red-500/20 leading-none">
+               <RotateCcw size={14} /> Reset Sistem
+             </button>
+          </div>
+        </aside>
+
+        <main className="flex-1 overflow-y-auto bg-white print:overflow-visible print:bg-white print:p-0">
+          <header className="p-8 border-b border-slate-100 sticky top-0 z-20 bg-white/90 backdrop-blur flex justify-between items-center print:hidden">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight uppercase leading-none mb-1">
+                 {activeTab === 'agihan' && "Agihan Utama Sesi Aktif"}
+                 {activeTab === 'dashboard' && "Analisa Beban Kerja"}
+                 {activeTab === 'kontak' && "Kad Kontak Syarahan"}
+                 {activeTab === 'pelan' && "Struktur Syllabus & Pelan"}
+                 {activeTab === 'expertise' && "Matrik Kepakaran Pensyarah"}
+                 {activeTab === 'pensyarah' && "Urus Profil Pensyarah"}
+                 {activeTab === 'kelas' && "Unit Kelas Sesi Aktif"}
+              </h2>
+              <div className="flex items-center gap-2 mt-1">
+                {selectedSession ? (
+                  <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full text-[10px] font-black border border-indigo-100 uppercase flex items-center gap-2 leading-none">
+                    <CalendarDays size={12}/> {formatSessionName(selectedSession)} ({selectedSession})
+                  </span>
+                ) : <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest leading-none">Sila pilih satu sesi di bar sisi</span>}
+              </div>
+            </div>
+            {(activeTab === 'agihan' || activeTab === 'dashboard') && (
+              <button onClick={optimizeKSDistribution} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-sm flex items-center gap-3 hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95 uppercase leading-none">
+                <Zap size={20} className="fill-white" /> Optimize Semua
+              </button>
+            )}
+          </header>
+
+          <div className="p-8 pb-32 print:p-0 print:pb-0">
+            {/* TAB: AGIHAN UTAMA */}
+            {activeTab === 'agihan' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-white rounded-[2.5rem] border-4 border-slate-950 overflow-hidden shadow-2xl">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-950 text-white text-[10px] font-black tracking-widest border-b border-slate-800">
+                        <th className="px-6 py-6 uppercase">Unit Kelas</th>
+                        <th className="px-6 py-6 uppercase">Subjek & Komponen</th>
+                        <th className="px-6 py-6 text-center uppercase">Mod</th>
+                        <th className="px-6 py-6 text-center text-indigo-400 uppercase">ATS</th>
+                        <th className="px-6 py-6 uppercase">Lantikan Pengajar</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y-2 divide-slate-100 uppercase">
+                      {activeUnits.length > 0 ? activeUnits.map((item) => (
+                        <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-6 py-6">
+                             <div className="flex flex-col gap-1 uppercase">
+                                <span className="text-lg text-slate-950 font-black tracking-tighter leading-none">{item.group}</span>
+                                <span className="text-[9px] text-slate-400 font-bold uppercase leading-none">SEM {item.semester}</span>
+                                {item.isAuto && <div className="flex items-center gap-1 text-emerald-500 text-[8px] font-black mt-1 uppercase"><TrendingUp size={10}/> AUTO-LINKED</div>}
+                             </div>
+                          </td>
+                          <td className="px-6 py-6">
+                             <div className="flex flex-col gap-1.5 uppercase">
+                                <div className="flex items-center gap-2 uppercase">
+                                   <span className="text-[10px] font-black bg-slate-900 text-white px-2 py-0.5 rounded leading-none">{item.courseCode}</span>
+                                   <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border uppercase ${item.type}`}>{item.type}</span>
+                                </div>
+                                <span className="text-[10px] font-bold text-slate-500 line-clamp-1 leading-none">{item.courseName}</span>
+                             </div>
+                          </td>
+                          <td className="px-6 py-6 text-center uppercase">
+                             <button onClick={() => toggleTeachingMode(item.id)} className={`px-3 py-1.5 rounded-xl border-2 transition-all flex items-center justify-center gap-2 mx-auto ${teachingModes[item.id] === 'TEAM' ? 'bg-amber-50 border-amber-200 text-amber-700 font-black shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-300'}`}>
+                                {teachingModes[item.id] === 'TEAM' ? <UsersIcon size={14}/> : <User size={14}/>}
+                             </button>
+                          </td>
+                          <td className="px-6 py-6 text-center uppercase">
+                             <span className="text-sm font-black text-indigo-600 leading-none">{item.ats.toFixed(1)}</span>
+                             <div className="text-[7px] text-slate-400 font-black mt-1 leading-none uppercase">({item.ks_val.toFixed(1)}KS)</div>
+                          </td>
+                          <td className="px-6 py-6">
+                             <div className="flex flex-col gap-2 uppercase">
+                                {[0, 1].map(idx => {
+                                  if (idx === 1 && teachingModes[item.id] !== 'TEAM') return null;
+                                  return (
+                                    <select key={`${item.id}-slot-${idx}`} value={assignments[item.id]?.[idx] || ''} onChange={(e) => handleAssign(item.id, e.target.value, idx)} className={`w-full p-2.5 rounded-xl border-2 text-[10px] font-black uppercase outline-none focus:border-indigo-500 ${assignments[item.id]?.[idx] ? 'bg-indigo-50 border-indigo-200 text-indigo-900' : 'bg-white border-slate-100 text-slate-400'}`}>
+                                      <option value="">-- Slot {idx+1} --</option>
+                                      {activeLecturersList.map(l => <option key={`${l.name}-opt`} value={l.name}>{l.name}</option>)}
+                                    </select>
+                                  );
+                                })}
+                             </div>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr><td colSpan="5" className="py-24 text-center text-slate-300 font-black uppercase leading-none px-20">Sila pilih sesi di bar sisi atau daftar kelas di tab Urus Unit Kelas.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: DASHBOARD BEBAN (OPTIMIZE INDIVIDUAL) */}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-12 animate-in fade-in duration-500 uppercase">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
+                  {activeLecturersList.map(l => {
+                    const stat = lecturerStats[l.name];
+                    const isOver = (stat.jam > l.max);
+                    const isUnder = (stat.jam < l.min && stat.jam > 0);
+                    const isZero = stat.jam === 0;
+                    const isOptimal = stat.jam >= l.min && stat.jam <= l.max;
+                    return (
+                      <div key={l.name} className={`p-8 rounded-[3.5rem] border-4 transition-all shadow-xl flex flex-col uppercase ${isOver ? 'bg-red-50 border-red-500' : isUnder ? 'bg-amber-50 border-amber-400' : isZero ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-950'}`}>
+                        <div className="flex justify-between items-start mb-8 px-2 leading-none uppercase">
+                          <div className="space-y-3 uppercase">
+                            <h4 className="text-xl font-black uppercase tracking-tighter text-slate-950">{l.name}</h4>
+                            <div className="flex flex-wrap gap-2 text-[9px] font-black uppercase text-white">
+                               <span className="bg-slate-950 px-3 py-1 rounded-full uppercase leading-none">SASARAN: {l.min}-{l.max} KS</span>
+                               <span className={`px-3 py-1 rounded-full leading-none uppercase ${isOver ? 'bg-red-600' : isUnder ? 'bg-amber-500' : isZero ? 'bg-slate-400' : 'bg-emerald-600'}`}>
+                                  {isOver ? 'OVERLOAD' : isUnder ? 'LOW LOAD' : isZero ? 'TIADA BEBAN' : 'OPTIMAL'}
+                               </span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 uppercase">
+                             <button onClick={() => optimizeIndividualLecturer(l.name)} title="Optimize Pensyarah Ini" className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700 transition-all active:scale-95 leading-none"><Zap size={20} fill="currentColor"/></button>
+                             {isOptimal ? <CheckCircle size={32} className="text-emerald-500" /> : <Scale size={32} className="text-slate-300" />}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-2 mb-8 uppercase">
+                          <div className="bg-white p-5 rounded-3xl border-2 border-slate-100 text-center shadow-sm uppercase"><p className="text-[9px] text-slate-400 font-black mb-2 uppercase leading-none">KS SESI</p><p className={`text-2xl font-black leading-none uppercase ${isOver ? 'text-red-600' : 'text-slate-950'}`}>{stat.jam.toFixed(1)}</p></div>
+                          <div className="bg-white p-5 rounded-3xl border-2 border-slate-100 text-center shadow-sm uppercase"><p className="text-[9px] text-slate-400 font-black mb-2 uppercase leading-none">BIL SUBJEK</p><p className="text-2xl font-black text-slate-950 leading-none uppercase">{stat.subjects.size}</p></div>
+                          <div className="bg-indigo-50/30 p-5 rounded-3xl border-2 border-indigo-100 text-center shadow-sm uppercase"><p className="text-[9px] text-indigo-400 font-black mb-2 uppercase leading-none">ADD PS</p><p className="text-2xl font-black text-indigo-600 leading-none uppercase">+{stat.additionalPS.toFixed(1)}</p></div>
+                          <div className="bg-slate-950 p-5 rounded-3xl text-white text-center shadow-lg uppercase"><p className="text-[9px] text-white/50 font-black mb-2 uppercase leading-none">ATS SESI</p><p className="text-2xl font-black leading-none uppercase">{(stat.ats).toFixed(1)}</p></div>
+                        </div>
+                        <div className="mt-auto px-2 uppercase">
+                           <button onClick={() => optimizeIndividualLecturer(l.name)} className="w-full py-4 rounded-2xl bg-indigo-50 border-2 border-indigo-100 text-indigo-600 font-black text-[10px] uppercase hover:bg-indigo-100 transition-all flex items-center justify-center gap-2 leading-none uppercase"><Zap size={14}/> OPTIMIZE BEBAN PENSYARAH INI</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* TAB: URUS UNIT KELAS */}
+            {activeTab === 'kelas' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in uppercase">
+                 <div className="p-8 rounded-[2.5rem] border-4 border-slate-950 bg-white shadow-xl h-fit sticky top-24 uppercase">
+                    <h4 className="font-black text-sm uppercase tracking-widest text-indigo-600 mb-8 leading-none uppercase">Pendaftaran Grup Baru</h4>
+                    <div className="space-y-6 uppercase">
+                       <div className="space-y-1 uppercase leading-none"><label className="text-[10px] font-black uppercase text-slate-400 ml-2 uppercase">Sesi Akademik</label><select className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-black text-sm uppercase leading-none" value={newGroup.session} onChange={e => setNewGroup({...newGroup, session: parseInt(e.target.value)})}>{academicSessions.map(s => <option key={s} value={s}>{s} ({formatSessionName(s)})</option>)}</select></div>
+                       <div className="space-y-1 uppercase leading-none"><label className="text-[10px] font-black uppercase text-slate-400 ml-2 uppercase">Semester (1-6)</label><select className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-black text-sm uppercase leading-none" value={newGroup.semester} onChange={e => setNewGroup({...newGroup, semester: parseInt(e.target.value)})}>{[1,2,3,4,5,6].map(s => <option key={s} value={s}>Semester {s}</option>)}</select></div>
+                       <div className="space-y-1 uppercase leading-none"><label className="text-[10px] font-black uppercase text-slate-400 ml-2 uppercase">Identiti Kelas (e.g. 1A)</label><input placeholder="Contoh: 1A" className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-white font-bold text-sm uppercase leading-none" value={newGroup.name} onChange={e => setNewGroup({...newGroup, name: e.target.value})}/></div>
+                       <div className="space-y-1 uppercase leading-none"><label className="text-[10px] font-black uppercase text-slate-400 ml-2 uppercase">Bilangan Pelajar</label><input type="number" className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-white font-bold text-sm uppercase leading-none" value={newGroup.students} onChange={e => setNewGroup({...newGroup, students: parseInt(e.target.value) || 0})}/></div>
+                       <div className="space-y-1 uppercase leading-none"><label className="text-[10px] font-black uppercase text-slate-400 ml-2 uppercase">PA</label><select className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-slate-50 font-black text-sm uppercase leading-none" value={newGroup.pa} onChange={e => setNewGroup({...newGroup, pa: e.target.value})}><option value="Tiada PA">-- Pilih PA --</option>{activeLecturersList.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}</select></div>
+                       <button onClick={addGroup} className="w-full bg-indigo-600 text-white p-5 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-indigo-700 active:scale-95 transition-all leading-none uppercase">Simpan Grup Baru</button>
+                    </div>
+                 </div>
+                 <div className="lg:col-span-2 space-y-6 uppercase">
+                    {selectedSession ? (
+                      <div className="bg-white border-4 border-slate-950 rounded-[3rem] overflow-hidden shadow-2xl animate-in fade-in uppercase">
+                         <div className="bg-slate-50 px-10 py-6 border-b-4 border-slate-950 flex justify-between items-center uppercase"><span className="uppercase font-black text-sm text-slate-950 leading-none">Unit Kelas Sesi {selectedSession}</span><span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest leading-none">{formatSessionName(selectedSession)}</span></div>
+                         <div className="p-8 space-y-4 uppercase">
+                           {effectiveGroups.filter(g => g.session === selectedSession).length > 0 ? effectiveGroups.filter(g => g.session === selectedSession).map((g, idx) => (
+                             <div key={idx} className={`p-5 rounded-2xl border-2 ${g.isAuto ? 'border-indigo-100 bg-indigo-50/20' : 'border-slate-100'} flex justify-between items-center transition-all uppercase`}>
+                                <div className="uppercase">
+                                   <div className="flex items-center gap-2 mb-1 uppercase leading-none"><span className="text-[9px] font-black text-indigo-400 uppercase">SEM {g.semester}</span>{g.isAuto && <span className="text-[7px] bg-indigo-600 text-white px-1.5 py-0.5 rounded leading-none uppercase">AUTO-LINKED</span>}</div>
+                                   <span className="text-xl font-black uppercase text-slate-950 leading-none uppercase">{g.name}</span><span className="text-[10px] text-slate-400 ml-4 font-bold uppercase tracking-tight leading-none">PA: {g.pa} | {g.students} P</span>
+                                </div>
+                                {!g.isAuto ? (<button onClick={() => removeGroup(selectedSession, g.semester, g.name)} className="text-slate-300 hover:text-red-500 transition-colors p-2 leading-none uppercase"><Trash2 size={20}/></button>) : <Link2 size={18} className="text-indigo-200 mr-2 leading-none uppercase" />}
+                             </div>
+                           )) : (<div className="py-20 text-center uppercase"><LayoutGrid size={48} className="mx-auto text-slate-200 mb-4 uppercase"/><p className="text-slate-300 font-black uppercase text-[10px] tracking-widest leading-none uppercase">Tiada grup di sesi ini.</p></div>)}
+                         </div>
+                      </div>
+                    ) : (<div className="bg-white border-4 border-dashed border-slate-200 rounded-[3rem] p-24 text-center uppercase"><p className="text-slate-300 font-black uppercase tracking-widest text-xs leading-none uppercase">Sila pilih satu sesi di bar sisi untuk urus unit kelas.</p></div>)}
+                 </div>
+              </div>
+            )}
+
+            {/* TAB: MATRIK KEPAKARAN */}
+            {activeTab === 'expertise' && (
+              <div className="animate-in fade-in duration-500 space-y-6 uppercase">
+                <div className="bg-white p-6 rounded-[2rem] border-4 border-slate-950 shadow-xl flex flex-col md:flex-row gap-6 items-center justify-between uppercase">
+                   <div className="flex items-center gap-4 w-full md:w-auto uppercase leading-none"><div className="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg uppercase"><BrainCircuit size={24}/></div><div className="uppercase"><h4 className="font-black text-slate-950 text-base leading-none uppercase">Matrik Kepakaran Pensyarah</h4><p className="text-[10px] text-slate-400 font-black tracking-widest mt-1 uppercase leading-none">Tanda 'P' (Pakar) atau 'S' (Sejarah)</p></div></div>
+                   <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto uppercase">
+                      <div className="relative group uppercase leading-none"><Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors uppercase"/><input type="text" placeholder="CARI PENSYARAH..." className="bg-slate-50 border-2 border-slate-100 rounded-xl py-3 pl-11 pr-4 font-black text-[10px] outline-none focus:border-indigo-500 focus:bg-white w-full transition-all uppercase leading-none" value={matrixSearch} onChange={e => setMatrixSearch(e.target.value)} /></div>
+                      <select className="bg-slate-50 border-2 border-slate-100 rounded-xl py-3 px-4 font-black text-[10px] outline-none focus:border-indigo-500 focus:bg-white transition-all uppercase leading-none" value={matrixSemFilter} onChange={e => setMatrixSemFilter(e.target.value)} ><option value="ALL">SEMUA SEMESTER</option>{[1,2,3,4,5,6].map(s => <option key={s} value={s}>SEMESTER {s}</option>)}</select>
+                   </div>
+                </div>
+                <div className="bg-white border-4 border-slate-950 rounded-[2.5rem] overflow-hidden shadow-2xl relative uppercase">https://github.com/opendistancelearningazmi-lgtm/ATASYSTEMFKK2026/tree/main
+                  <div className="overflow-x-auto max-h-[60vh] uppercase">
+                    <table className="w-full text-left border-collapse table-fixed uppercase">
+                      <thead className="bg-slate-950 text-white text-[10px] font-black tracking-widest border-b border-slate-800 sticky top-0 z-30 uppercase leading-none">
+                        <tr>
+                          <th className="px-6 py-8 border-r border-slate-800 sticky left-0 bg-slate-950 z-40 w-64 shadow-xl uppercase">Nama Pensyarah</th>
+                          {filteredMatrixCourses.map(c => (<th key={c.code} className="px-4 py-8 text-center border-r border-slate-800 min-w-[120px] uppercase leading-none"><span className="text-indigo-400 block text-xs leading-none mb-1 uppercase">{c.code}</span><span className="text-[7px] text-slate-500 uppercase font-black uppercase">SEM {c.semester}</span></th>))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 uppercase">
+                        {filteredMatrixLecturers.map((l) => (
+                          <tr key={l.name} className={`hover:bg-slate-50 transition-all ${!l.active ? 'opacity-30 grayscale bg-slate-100' : ''} uppercase`}>
+                            <td className="px-6 py-5 border-r border-slate-200 sticky left-0 bg-white z-20 shadow-md font-black text-slate-800 uppercase leading-tight uppercase">{l.name}{!l.active && <span className="block text-[7px] text-red-500 font-black mt-1 tracking-tighter uppercase leading-none">OFF-DUTY</span>}</td>
+                            {filteredMatrixCourses.map(c => {
+                              const isExpert = (l.expertise || []).includes(c.code);
+                              const hasHistory = (l.history || []).includes(c.code);
+                              return (
+                                <td key={`${l.name}-${c.code}`} className={`px-2 py-4 text-center border-r border-slate-50 relative group ${isExpert ? 'bg-indigo-50/30' : ''} uppercase`}>
+                                  <div className="flex items-center justify-center gap-1.5 uppercase leading-none"><button onClick={() => l.active && toggleExpertise(l.name, c.code)} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all text-[11px] font-black shadow-sm uppercase ${isExpert ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 scale-110' : 'bg-white border-2 border-slate-200 text-slate-300 hover:border-indigo-600'}`}>P</button><button onClick={() => l.active && toggleHistory(l.name, c.code)} className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all text-[11px] font-black shadow-sm uppercase ${hasHistory ? 'bg-amber-400 text-white ring-4 ring-amber-100 scale-110' : 'bg-white border-2 border-slate-200 text-slate-300 hover:border-amber-500'}`}>S</button></div>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: KONTAK CARD (PROFESSIONAL RESUME STYLE) */}
+            {activeTab === 'kontak' && (
+              <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in duration-500 print:max-w-none print:m-0 print:p-0 uppercase">
+                <div className="bg-slate-950 p-10 rounded-[3rem] flex flex-col md:flex-row items-center gap-10 shadow-2xl print:hidden uppercase leading-none">
+                   <div className="bg-indigo-600 p-6 rounded-[2rem] text-white shadow-lg uppercase leading-none"><Printer size={40} /></div>
+                   <div className="flex-1 text-center md:text-left uppercase leading-none"><h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2 leading-none uppercase">Penjana Kad Kontak Syarahan</h3><p className="text-slate-500 font-bold text-[11px] uppercase tracking-widest leading-relaxed uppercase">Slip agihan rasmi dan sejarah pengajaran.</p></div>
+                   <select value={selectedLecturerForContact} onChange={e => setSelectedLecturerForContact(e.target.value)} className="w-full md:w-80 bg-slate-900 border-2 border-slate-800 text-white p-6 rounded-3xl outline-none font-black text-sm uppercase focus:border-indigo-500 shadow-2xl transition-all uppercase leading-none">
+                      <option value="">-- Pilih Pensyarah --</option>
+                      <option value="ALL">{" >> SEMUA PENSYARAH << "}</option>
+                      {activeLecturersList.map(l => <option key={l.name} value={l.name}>{l.name}</option>)}
+                   </select>
+                </div>
+                <div className="space-y-20 print:space-y-0 uppercase leading-none">
+                  {selectedLecturerForContact === "ALL" ? activeLecturersList.map(l => renderContactCard(l.name)) : (selectedLecturerForContact && renderContactCard(selectedLecturerForContact))}
+                </div>
+                {selectedLecturerForContact && (
+                   <div className="text-center pt-10 print:hidden uppercase leading-none"><button onClick={handlePrintAction} className="bg-slate-950 text-white px-10 py-5 rounded-2xl font-black text-xs uppercase flex items-center gap-3 mx-auto hover:bg-black transition-all shadow-xl active:scale-95 leading-none uppercase"><Printer size={20}/> Cetak Dokumen Rasmi</button></div>
+                )}
+              </div>
+            )}
+
+            {/* TAB: PELAN PENGAJIAN */}
+            {activeTab === 'pelan' && (
+              <div className="animate-in fade-in duration-500 space-y-12 uppercase leading-none">
+                <section className="bg-slate-950 p-10 rounded-[3rem] text-white shadow-2xl border-4 border-slate-950 uppercase">
+                   <div className="flex justify-between items-start mb-10 uppercase"><h3 className="text-2xl font-black text-indigo-400 tracking-tighter flex items-center gap-4 uppercase leading-none uppercase"><BookMarked size={36} /> {editingCourseCode ? 'Kemaskini Subjek' : 'Struktur Syllabus'}</h3>{editingCourseCode && (<button onClick={() => { setNewCourse({ semester: 1, code: '', name: '', lec_jam: 0, tut_jam: 0, lab_jam: 0 }); setEditingCourseCode(null); }} className="text-red-400 font-black text-[10px] flex items-center gap-2 bg-red-400/10 px-4 py-2 rounded-xl leading-none uppercase"><X size={14}/> BATAL EDIT</button>)}</div>
+                   <div className="grid grid-cols-1 md:grid-cols-6 gap-6 mb-10 uppercase">
+                      <div className="md:col-span-1 space-y-2 uppercase leading-none"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none uppercase">Semester</label><select className="w-full p-4 rounded-2xl border-2 border-slate-800 bg-slate-900 font-black text-white outline-none focus:border-indigo-500 uppercase leading-none" value={newCourse.semester} onChange={e => setNewCourse({...newCourse, semester: parseInt(e.target.value)})}>{[1,2,3,4,5,6].map(s => <option key={s} value={s}>SEM {s}</option>)}</select></div>
+                      <div className="md:col-span-1 space-y-2 uppercase leading-none"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none uppercase">Kod</label><input className="w-full bg-slate-900 border-2 border-slate-800 p-4 rounded-2xl font-black text-white outline-none focus:border-indigo-500 uppercase leading-none" placeholder="CHE111" value={newCourse.code} onChange={e => setNewCourse({...newCourse, code: e.target.value.toUpperCase()})}/></div>
+                      <div className="md:col-span-4 space-y-2 uppercase leading-none"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none uppercase">Nama Penuh Subjek</label><input className="w-full bg-slate-900 border-2 border-slate-800 p-4 rounded-2xl font-black text-white outline-none focus:border-indigo-500 uppercase leading-none" placeholder="ENGINEERING DRAWING" value={newCourse.name} onChange={e => setNewCourse({...newCourse, name: e.target.value.toUpperCase()})}/></div>
+                      <div className="md:col-span-2 space-y-2 uppercase leading-none"><label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none uppercase">Lecture KS</label><input type="number" step="0.5" className="w-full bg-slate-900 border-2 border-slate-800 p-4 rounded-2xl font-black text-white outline-none focus:border-indigo-500 uppercase leading-none" value={newCourse.lec_jam} onChange={e => setNewCourse({...newCourse, lec_jam: parseFloat(e.target.value) || 0})}/></div>
+                      <div className="md:col-span-2 space-y-2 uppercase leading-none"><label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none uppercase">Tutorial KS</label><input type="number" step="0.5" className="w-full bg-slate-900 border-2 border-slate-800 p-4 rounded-2xl font-black text-white outline-none focus:border-indigo-500 uppercase leading-none" value={newCourse.tut_jam} onChange={e => setNewCourse({...newCourse, tut_jam: parseFloat(e.target.value) || 0})}/></div>
+                      <div className="md:col-span-2 space-y-2 uppercase leading-none"><label className="text-[10px] font-black text-amber-400 uppercase tracking-widest leading-none uppercase">Laboratory KS</label><input type="number" step="0.5" className="w-full bg-slate-900 border-2 border-slate-800 p-4 rounded-2xl font-black text-white outline-none focus:border-indigo-500 uppercase leading-none" value={newCourse.lab_jam} onChange={e => setNewCourse({...newCourse, lab_jam: parseFloat(e.target.value) || 0})}/></div>
+                   </div>
+                   <button onClick={saveCourse} className="w-full bg-white text-slate-950 font-black p-6 rounded-[2rem] shadow-xl flex items-center justify-center gap-3 hover:bg-slate-100 transition-all active:scale-95 uppercase border-b-4 border-slate-300 leading-none uppercase">{editingCourseCode ? <Save size={24} /> : <PlusCircle size={24} />}{editingCourseCode ? 'Simpan Perubahan Subjek' : 'Daftarkan Subjek Baru'}</button>
+                </section>
+                <div className="bg-white border-4 border-slate-950 rounded-[3rem] overflow-hidden shadow-2xl animate-in zoom-in-95 uppercase">
+                  <table className="w-full text-left border-collapse uppercase">
+                    <thead>
+                      <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest uppercase">
+                        <th className="px-8 py-6 uppercase">SEM</th>
+                        <th className="px-8 py-6 uppercase">KOD & NAMA SUBJEK</th>
+                        <th className="px-8 py-6 text-center text-indigo-400 uppercase">LEC</th>
+                        <th className="px-8 py-6 text-center text-emerald-400 uppercase">TUT</th>
+                        <th className="px-8 py-6 text-center text-amber-400 uppercase">LAB</th>
+                        <th className="px-8 py-6 text-right uppercase">AKSI</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y-2 divide-slate-100 uppercase">
+                      {courses.map((c) => (<tr key={c.code} className="hover:bg-slate-50/50 transition-all uppercase"><td className="px-8 py-6 uppercase leading-none"><span className="bg-slate-100 text-slate-500 px-3 py-1 rounded-full font-black text-[10px] uppercase">S{c.semester}</span></td><td className="px-8 py-6 uppercase leading-none"><p className="font-black text-base text-slate-950 tracking-tighter uppercase leading-none mb-1 uppercase">{c.code}</p><p className="text-[10px] text-slate-400 font-bold uppercase leading-none uppercase">{c.name}</p></td><td className="px-8 py-6 text-center font-black text-slate-800 text-sm leading-none uppercase">{c.lec_jam || '-'}</td><td className="px-8 py-6 text-center font-black text-slate-800 text-sm leading-none uppercase">{c.tut_jam || '-'}</td><td className="px-8 py-6 text-center font-black text-slate-800 text-sm leading-none uppercase">{c.lab_jam || '-'}</td><td className="px-8 py-6 text-right space-x-2 leading-none uppercase"><button onClick={() => startEditCourse(c)} className="p-2 text-slate-300 hover:text-indigo-600 transition-colors uppercase leading-none"><Edit3 size={18}/></button><button onClick={() => deleteCourse(c.code)} className="p-2 text-slate-300 hover:text-red-600 transition-colors uppercase leading-none"><Trash2 size={18}/></button></td></tr>))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: URUS PENSYARAH */}
+            {activeTab === 'pensyarah' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 uppercase leading-none">
+                <div className={`p-10 rounded-[3rem] border-4 shadow-2xl h-fit sticky top-24 uppercase ${editingLecIndex !== null ? 'bg-indigo-50 border-indigo-400' : 'bg-slate-50 border-slate-950'}`}>
+                  <div className="flex items-center gap-4 mb-8 text-slate-950 uppercase"><UserCog className="text-indigo-600 uppercase" size={28} /><h4 className="font-black text-sm uppercase tracking-widest leading-none uppercase">Profil Pensyarah</h4></div>
+                  <div className="space-y-6 uppercase">
+                    <div className="space-y-1 uppercase leading-none"><label className="text-[10px] font-black text-slate-400 uppercase ml-2 leading-none uppercase">Nama Penuh</label><input placeholder="NAMA PENUH" className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-white font-black text-sm uppercase outline-none focus:border-indigo-500 transition-all leading-none uppercase" value={newLec.name} onChange={e => setNewLec({...newLec, name: e.target.value})}/></div>
+                    <div className="space-y-1 uppercase leading-none"><label className="text-[10px] font-black text-slate-400 uppercase ml-2 leading-none uppercase">Trek Kerjaya</label><select className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-white font-black text-[11px] uppercase outline-none focus:border-indigo-500 transition-all leading-none uppercase" value={newLec.track} onChange={e => setNewLec({...newLec, track: e.target.value})}>{careerTracks.map(track => <option key={track} value={track}>{track}</option>)}</select></div>
+                    <div className="grid grid-cols-2 gap-4 uppercase"><div className="space-y-1 uppercase leading-none"><label className="text-[10px] font-black text-slate-400 uppercase ml-2 leading-none uppercase">Min KS</label><input type="number" className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-white font-black text-sm outline-none focus:border-indigo-500 transition-all leading-none uppercase" value={newLec.min} onChange={e => setNewLec({...newLec, min: parseInt(e.target.value)})}/></div><div className="space-y-1 uppercase leading-none"><label className="text-[10px] font-black text-slate-400 uppercase ml-2 leading-none uppercase">Max KS</label><input type="number" className="w-full p-4 rounded-2xl border-2 border-slate-100 bg-white font-black text-sm outline-none focus:border-indigo-500 transition-all leading-none uppercase" value={newLec.max} onChange={e => setNewLec({...newLec, max: parseInt(e.target.value)})}/></div></div>
+                    <button onClick={saveLecturer} className="w-full bg-slate-950 text-white p-5 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 leading-none uppercase"> {editingLecIndex !== null ? 'Kemaskini Profil' : 'Daftar Pensyarah'} </button>
+                  </div>
+                </div>
+                <div className="lg:col-span-2 bg-white rounded-[3rem] border-4 border-slate-950 overflow-hidden shadow-2xl h-fit uppercase">
+                   <table className="w-full text-left border-collapse uppercase">
+                      <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b uppercase"><tr><th className="p-8 uppercase">Status</th><th className="p-8 uppercase">Nama & Profil</th><th className="p-8 text-center uppercase">Had KS</th><th className="p-8 text-right uppercase">Aksi</th></tr></thead>
+                      <tbody className="divide-y-2 divide-slate-100 font-black uppercase">
+                        {lecturers.map((l, idx) => (
+                          <tr key={idx} className={`hover:bg-slate-50 transition-colors ${!l.active ? 'opacity-30' : ''} uppercase`}><td className="p-8 uppercase"><button onClick={() => toggleLecturerActive(idx)} className={`px-4 py-1.5 rounded-full text-[9px] font-black tracking-widest uppercase ${l.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'} leading-none`}>{l.active ? 'Aktif' : 'Cuti'}</button></td><td className="p-8 uppercase leading-none"><p className="font-black text-base text-slate-950 mb-1 leading-none uppercase">{l.name}</p><span className="text-[8px] font-black text-indigo-600 border border-indigo-100 bg-indigo-50 px-2 py-0.5 rounded uppercase leading-none">{l.track}</span></td><td className="p-8 text-center uppercase leading-none"><span className="text-xs font-black text-slate-800 uppercase leading-none">{l.min}-{l.max} KS</span></td><td className="p-8 text-right space-x-2 leading-none uppercase"><button onClick={() => { setNewLec(l); setEditingLecIndex(idx); }} className="p-2.5 text-slate-300 hover:text-indigo-600 transition-colors leading-none uppercase"><Edit3 size={18}/></button><button onClick={() => setLecturers(lecturers.filter((_, i) => i !== idx))} className="p-2.5 text-slate-300 hover:text-red-600 transition-colors leading-none uppercase"><Trash2 size={18}/></button></td></tr>
+                        ))}
+                      </tbody>
+                   </table>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default App;
